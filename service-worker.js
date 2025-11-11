@@ -1,10 +1,10 @@
-const CACHE_NAME = 'photo-report-app-v3';
+const CACHE_NAME = 'photo-report-app-v2';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/app.js',
-  '/styles.css',
-  '/manifest.json'
+  '/ReportFotografico/',
+  '/ReportFotografico/index.html',
+  '/ReportFotografico/app.js',
+  '/ReportFotografico/styles.css',
+  '/ReportFotografico/manifest.json'
 ];
 
 // Install event - crea cache
@@ -37,39 +37,28 @@ self.addEventListener('activate', event => {
 
 // Fetch event - cache-first strategy
 self.addEventListener('fetch', event => {
-  // Solo GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
-  
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // Ritorna dalla cache se disponibile
-        if (response) {
-          return response;
-        }
-        
-        // Altrimenti fai fetch di rete
+        if (response) return response;
+
         return fetch(event.request)
           .then(response => {
-            // Cache response se valido
             if (!response || response.status !== 200 || response.type !== 'basic') {
               return response;
             }
-            
+
             const responseToCache = response.clone();
             caches.open(CACHE_NAME)
               .then(cache => {
                 cache.put(event.request, responseToCache);
               });
-            
+
             return response;
           })
-          .catch(() => {
-            // Ritorna cached page se offline
-            return caches.match('/index.html');
-          });
+          .catch(() => caches.match('/ReportFotografico/index.html'));
       })
   );
 });
