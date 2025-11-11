@@ -1,4 +1,4 @@
-const CACHE_NAME = 'photo-report-app-v2';
+const CACHE_NAME = 'photo-report-app-v3';
 const urlsToCache = [
   '/',
   '/index.html',
