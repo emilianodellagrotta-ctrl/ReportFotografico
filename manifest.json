@@ -2,7 +2,7 @@
   "name": "Photo Report App",
   "short_name": "Report",
   "description": "App per creare report fotografici con tag colorati, export PDF e DOCX",
-  "start_url": "/",
+  "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1a73e8",
