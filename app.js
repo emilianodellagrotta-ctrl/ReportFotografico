@@ -16,6 +16,7 @@ let editOriginalState = null;
 const listTitleScreen = document.getElementById('listTitleScreen');
 const listTitleInput = document.getElementById('listTitleInput');
 const saveListTitleBtn = document.getElementById('saveListTitle');
+const openWelcomeBtn = document.getElementById('openWelcomeBtn');
 const mainApp = document.getElementById('mainApp');
 const listTitleDisplay = document.getElementById('listTitleDisplay');
 const editListTitleBtn = document.getElementById('editListTitle');
@@ -67,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initializeEventListeners() {
   // List title first screen
   saveListTitleBtn.addEventListener('click', saveListTitle);
+  openWelcomeBtn.addEventListener('click', openWelcomeImportDialog);
   editListTitleBtn.addEventListener('click', () => openModal(editTitleModal));
   cancelEditTitleBtn.addEventListener('click', () => closeModal(editTitleModal));
   confirmEditTitleBtn.addEventListener('click', changeListTitle);
@@ -140,6 +142,19 @@ function saveListTitle() {
   listTitleScreen.style.display = 'none';
   mainApp.style.display = 'block';
   showToast('Lista creata! Ora aggiungi report');
+}
+
+function openWelcomeImportDialog() {
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.json';
+  fileInput.addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (file) {
+      handleWelcomeImportFile(event);
+    }
+  });
+  fileInput.click();
 }
 
 function changeListTitle() {
@@ -988,6 +1003,65 @@ function exportToJSON() {
   console.log('=== EXPORT COMPLETED ===' );
   showToast(`Esportati ${reports.length} report con foto combinate (tag+lettere)`);
   console.log('Note: Exported photos contain merged tags with letters');
+}
+
+function handleWelcomeImportFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  // Verifica che sia un file JSON
+  if (!file.name.endsWith('.json')) {
+    alert('Errore: seleziona un file .json');
+    return;
+  }
+  
+  console.log('=== WELCOME SCREEN IMPORT ===' );
+  console.log('Reading file:', file.name);
+  
+  const reader = new FileReader();
+  
+  reader.onload = function(e) {
+    try {
+      const fileContent = e.target.result;
+      
+      if (!fileContent || typeof fileContent !== 'string') {
+        throw new Error('File non valido');
+      }
+      
+      let parsedData = null;
+      try {
+        parsedData = JSON.parse(fileContent);
+      } catch (parseError) {
+        throw new Error('File JSON non valido: ' + parseError.message);
+      }
+      
+      if (!parsedData || !parsedData.reports || !Array.isArray(parsedData.reports)) {
+        throw new Error('Nessun report trovato nel file');
+      }
+      
+      console.log('JSON parsed successfully from welcome screen');
+      console.log('Reports found:', parsedData.reports.length);
+      
+      // Store data and import directly (replace mode)
+      pendingImportData = parsedData;
+      confirmImport(true);
+      
+      // Hide welcome screen and show main app
+      listTitleScreen.style.display = 'none';
+      mainApp.style.display = 'block';
+      
+    } catch (error) {
+      console.error('Errore import da welcome:', error);
+      alert('Errore nell\'import del file: ' + error.message);
+    }
+  };
+  
+  reader.onerror = function(error) {
+    console.error('Errore FileReader:', error);
+    alert('Errore nella lettura del file');
+  };
+  
+  reader.readAsText(file);
 }
 
 function handleImportFile(event) {
