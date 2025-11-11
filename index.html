@@ -22,6 +22,56 @@
 
 <!-- Apple Touch Icon (Nera con R grigio satinato) -->
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><defs><linearGradient id='grad' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' style='stop-color:%23d3d3d3;stop-opacity:1' /><stop offset='100%' style='stop-color:%238a8a8a;stop-opacity:1' /></linearGradient></defs><rect fill='%23000000' width='180' height='180'/><text x='50%' y='50%' font-size='108' font-weight='bold' fill='url(%23grad)' text-anchor='middle' dominant-baseline='central' font-family='Arial, sans-serif'>R</text></svg>">
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./service-worker.js').then(reg => {
+    console.log('Service Worker registrato:', reg);
+  });
+
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data && event.data.type === 'NEW_VERSION_AVAILABLE') {
+      showUpdateBanner();
+    }
+  });
+}
+
+function showUpdateBanner() {
+  const banner = document.createElement('div');
+  banner.textContent = 'È disponibile una nuova versione — Aggiorna ora';
+  banner.style.position = 'fixed';
+  banner.style.bottom = '20px';
+  banner.style.left = '50%';
+  banner.style.transform = 'translateX(-50%)';
+  banner.style.background = '#1a73e8';
+  banner.style.color = 'white';
+  banner.style.padding = '12px 20px';
+  banner.style.borderRadius = '12px';
+  banner.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
+  banner.style.fontFamily = 'system-ui, sans-serif';
+  banner.style.fontSize = '15px';
+  banner.style.cursor = 'pointer';
+  banner.style.zIndex = '9999';
+  banner.style.transition = 'opacity 0.3s ease';
+  banner.style.opacity = '0';
+
+  document.body.appendChild(banner);
+
+  setTimeout(() => banner.style.opacity = '1', 100); // fade-in
+
+  banner.addEventListener('click', () => {
+    banner.style.opacity = '0';
+    setTimeout(() => banner.remove(), 300);
+
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage('SKIP_WAITING');
+    }
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+  });
+}
+</script>
 
 
 <body>
