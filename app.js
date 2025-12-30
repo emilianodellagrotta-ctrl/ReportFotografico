@@ -621,12 +621,25 @@ function openDeleteModal(id) {
 }
 
 function confirmDelete() {
+  // Rimuovi il report dall'array principale
   reports = reports.filter(r => r.id !== currentDeleteId);
+  
+  // Rimuovi la riga dalla lista "Report aggiunti" in Aggiungi Report
+  const addedReportRow = document.querySelector(
+    `[data-report-id="${currentDeleteId}"]`
+  );
+  if (addedReportRow) {
+    addedReportRow.remove();
+  }
+  
+  // Aggiorna la UI
   renderReportsList();
+  updateMiniReportsList();
   showToast('Report eliminato');
   closeModal(deleteModal);
   currentDeleteId = null;
 }
+
 
 function openModal(modal) {
   modal.classList.add('active');
