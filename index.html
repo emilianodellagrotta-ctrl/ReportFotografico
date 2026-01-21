@@ -1,368 +1,1439 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
+<!doctype html>
+<html lang="it" class="h-full">
+ <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Report Fotografico</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-
-<!-- AGGIUNGI QUESTO NEL <head> DI index.html -->
-
-<!-- PWA Manifest -->
-<link rel="manifest" href="manifest.json">
-
-<!-- Meta Tags per PWA -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="App per creare report fotografici con tag colorati, export PDF e DOCX">
-<meta name="theme-color" content="#1a73e8">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-<!-- Apple Touch Icon (Nera con R grigio satinato) -->
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><defs><linearGradient id='grad' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' style='stop-color:%23d3d3d3;stop-opacity:1' /><stop offset='100%' style='stop-color:%238a8a8a;stop-opacity:1' /></linearGradient></defs><rect fill='%23000000' width='180' height='180'/><text x='50%' y='50%' font-size='108' font-weight='bold' fill='url(%23grad)' text-anchor='middle' dominant-baseline='central' font-family='Arial, sans-serif'>R</text></svg>">
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js').then(reg => {
-    console.log('Service Worker registrato:', reg);
-  });
-
-  navigator.serviceWorker.addEventListener('message', event => {
-    if (event.data && event.data.type === 'NEW_VERSION_AVAILABLE') {
-      showUpdateBanner();
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Report</title>
+  <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlJlcG9ydCIsCiAgInNob3J0X25hbWUiOiAiUmVwb3J0IiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMxYTFhMWEiLAogICJ0aGVtZV9jb2xvciI6ICIjMWE3M2U4IiwKICAiaWNvbnMiOiBbXQp9">
+  <meta name="theme-color" content="#1a73e8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://unpkg.com/docx@8.2.2/build/index.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body { box-sizing: border-box; }
+    * { font-family: 'Inter', sans-serif; }
+    
+    .tag-button {
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
     }
-  });
-}
-
-function showUpdateBanner() {
-  const banner = document.createElement('div');
-  banner.textContent = 'È disponibile una nuova versione — Aggiorna ora';
-  banner.style.position = 'fixed';
-  banner.style.bottom = '20px';
-  banner.style.left = '50%';
-  banner.style.transform = 'translateX(-50%)';
-  banner.style.background = '#1a73e8';
-  banner.style.color = 'white';
-  banner.style.padding = '12px 20px';
-  banner.style.borderRadius = '12px';
-  banner.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
-  banner.style.fontFamily = 'system-ui, sans-serif';
-  banner.style.fontSize = '15px';
-  banner.style.cursor = 'pointer';
-  banner.style.zIndex = '9999';
-  banner.style.transition = 'opacity 0.3s ease';
-  banner.style.opacity = '0';
-
-  document.body.appendChild(banner);
-
-  setTimeout(() => banner.style.opacity = '1', 100); // fade-in
-
-  banner.addEventListener('click', () => {
-    banner.style.opacity = '0';
-    setTimeout(() => banner.remove(), 300);
-
-    if (navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage('SKIP_WAITING');
+    
+    .tag-button:active {
+      transform: scale(0.95);
     }
-
-    setTimeout(() => {
-      window.location.reload();
-    }, 500);
-  });
-}
-</script>
-
-
-<body>
-  <!-- Initial List Title Screen -->
-  <div id="listTitleScreen" class="list-title-screen">
-    <div class="list-title-content">
-      <h2>Benvenuto!</h2>
-      <p>Crea report fotografici con tag colorati e esporta in PDF o DOCX</p>
-      <input type="text" id="listTitleInput" class="form-control" placeholder="es: Ispezione Impianto A" required>
-      <button id="saveListTitle" class="btn btn--primary btn--full-width btn--lg">Inizia</button>
-      <button id="openWelcomeBtn" class="btn btn--primary btn--full-width btn--lg" style="margin-top: 12px;">Apri</button>
+    
+    .photo-container {
+      position: relative;
+      touch-action: none;
+      user-select: none;
+    }
+    
+    .tag-on-photo {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: white;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 3px 12px rgba(0,0,0,0.5);
+      border: 3px solid white;
+      z-index: 10;
+      cursor: move;
+      touch-action: none;
+      user-select: none;
+    }
+    
+    .tag-on-photo.dragging {
+      opacity: 0.8;
+      transform: translate(-50%, -50%) scale(1.2);
+      z-index: 20;
+    }
+    
+    .toast {
+      animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s;
+    }
+    
+    @keyframes slideIn {
+      from { transform: translateY(-100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+      transition: all 0.2s ease;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);
+    }
+    
+    .card {
+      background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid #e2e8f0;
+    }
+    
+    .tab-active {
+      background: #1a73e8;
+      color: white;
+    }
+    
+    .modal-backdrop {
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+    }
+    
+    input[type="file"] {
+      display: none;
+    }
+    
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-progress { background: #dbeafe; color: #1e40af; }
+    .status-completed { background: #d1fae5; color: #065f46; }
+    
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full bg-slate-100 overflow-auto">
+  <div id="app" class="h-full w-full flex flex-col"><!-- Welcome Screen -->
+   <div id="welcome-screen" class="h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div class="text-center mb-12">
+     <div class="w-24 h-24 mx-auto mb-6 bg-black rounded-2xl flex items-center justify-center shadow-2xl border border-slate-700"><span class="text-5xl font-bold text-slate-400">R</span>
+     </div>
+     <h1 id="app-title-welcome" class="text-4xl font-bold text-white mb-3">Report</h1>
+     <p class="text-slate-400 text-lg">Report fotografici professionali</p>
     </div>
-  </div>
-
-  <div class="app-container" id="mainApp" style="display: none;">
-    <!-- Header -->
-    <header class="app-header">
-      <div class="header-title-container">
-        <h1 id="listTitleDisplay">Report Fotografico</h1>
-        <button id="editListTitle" class="btn-edit-title" title="Modifica titolo lista">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-          </svg>
-        </button>
+    <div class="flex flex-col gap-4 w-full max-w-xs"><button onclick="startNewProject()" class="btn-primary text-white py-4 px-8 rounded-xl font-semibold text-lg shadow-lg flex items-center justify-center gap-3">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg> Inizia </button> <button onclick="document.getElementById('import-json-welcome').click()" class="bg-slate-700 hover:bg-slate-600 text-white py-4 px-8 rounded-xl font-semibold text-lg shadow-lg flex items-center justify-center gap-3 transition-all">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+      </svg> Apri </button> <input type="file" id="import-json-welcome" accept=".json" onchange="handleImportWelcome(event)">
+    </div>
+   </div><!-- Title Input Screen -->
+   <div id="title-screen" class="hidden h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div class="w-full max-w-md">
+     <h2 class="text-2xl font-bold text-white mb-2 text-center">Nome Lista Report</h2>
+     <p class="text-slate-400 mb-8 text-center">Inserisci un titolo per questa sessione</p><input type="text" id="list-title-input" placeholder="Es. Ispezione Fabbrica 10/01" class="w-full px-5 py-4 rounded-xl bg-slate-700 border border-slate-600 text-white placeholder-slate-400 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6"> <button onclick="confirmListTitle()" class="btn-primary w-full text-white py-4 rounded-xl font-semibold text-lg shadow-lg"> Conferma </button>
+    </div>
+   </div><!-- Main App -->
+   <div id="main-app" class="hidden h-full flex flex-col"><!-- Header -->
+    <header class="bg-white shadow-sm border-b border-slate-200 px-4 py-3 flex-shrink-0">
+     <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+       <div class="w-10 h-10 bg-black rounded-lg flex items-center justify-center"><span class="text-xl font-bold text-slate-400">R</span>
+       </div>
+       <div>
+        <h1 id="header-list-title" class="font-semibold text-slate-800 text-sm truncate max-w-[150px] sm:max-w-none"></h1>
+        <p class="text-xs text-slate-500"><span id="report-count">0</span> report</p>
+       </div>
       </div>
-    </header>
-
-    <!-- Tab Navigation -->
-    <nav class="tab-nav">
-      <button class="tab-btn active" data-tab="nuovo">Aggiungi Report</button>
-      <button class="tab-btn" data-tab="lista">Lista Report</button>
-    </nav>
-
-    <!-- Tab Content -->
-    <main class="tab-content">
-      <!-- Nuovo Report Tab -->
-      <section id="tab-nuovo" class="tab-pane active">
-        <form id="reportForm" class="report-form">
-          <div class="form-group">
-            <label class="form-label">Foto</label>
-            <input type="file" id="fotoInput" class="file-input" accept="image/*" capture="environment" required>
-            <label for="fotoInput" class="btn btn--outline btn--full-width">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                <circle cx="12" cy="13" r="4"></circle>
-              </svg>
-              Acquisisci Foto
-            </label>
-          </div>
-
-          <!-- Photo Preview and Arrow Positioning -->
-          <div id="photoPreviewContainer" class="photo-preview-container" style="display: none;">
-            <label class="form-label">Anteprima e Posizionamento Freccia</label>
-            <div class="photo-wrapper">
-              <img id="photoPreview" class="photo-preview" alt="Anteprima foto">
-              <div id="photoOverlay" class="photo-overlay"></div>
-              <div id="arrowsContainer" class="arrows-container"></div>
-            </div>
-            <p class="helper-text">Clicca i pulsanti colorati per attivare/disattivare i tag, poi trascinali per posizionarli</p>
+      <div class="flex items-center gap-2"><button onclick="showExportModal()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="Esporta">
+        <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg></button> <button onclick="showMenuModal()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="Menu">
+        <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg></button>
+      </div>
+     </div>
+    </header><!-- Tabs -->
+    <nav class="bg-white border-b border-slate-200 px-4 py-2 flex-shrink-0">
+     <div class="flex gap-2"><button onclick="switchTab('add')" id="tab-add" class="tab-active flex-1 py-2 px-3 rounded-lg font-medium text-sm transition-all"> Aggiungi </button> <button onclick="switchTab('list')" id="tab-list" class="flex-1 py-2 px-3 rounded-lg font-medium text-sm bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all"> Lista Report </button>
+     </div>
+    </nav><!-- Content Area -->
+    <main class="flex-1 overflow-auto"><!-- Add Report Tab -->
+     <div id="content-add" class="p-4"><!-- Photo Section -->
+      <div class="card rounded-2xl p-4 mb-4 shadow-sm">
+       <h3 class="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+        <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg> 1. Foto</h3>
+       <div id="photo-placeholder" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-slate-50">
+        <svg class="w-12 h-12 mx-auto text-slate-400 mb-3" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <p class="text-slate-500 mb-4">Nessuna foto selezionata</p>
+        <div class="flex flex-col sm:flex-row gap-2 justify-center"><button onclick="document.getElementById('camera-input').click()" class="btn-primary text-white py-2 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+          </svg> Scatta </button> <button onclick="document.getElementById('gallery-input').click()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 py-2 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg> Galleria </button>
+        </div>
+       </div>
+       <div id="photo-preview" class="hidden">
+        <div id="photo-container" class="photo-container rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center" style="max-height: 400px;"><img id="photo-img" class="max-w-full max-h-[400px] object-contain" alt="Foto caricata">
+        </div><button onclick="removePhoto()" class="mt-3 text-red-500 hover:text-red-600 text-sm font-medium flex items-center gap-1">
+         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+         </svg> Rimuovi foto </button>
+       </div><input type="file" id="camera-input" accept="image/*" capture="environment" onchange="handlePhotoSelect(event)"> <input type="file" id="gallery-input" accept="image/*" onchange="handlePhotoSelect(event)">
+      </div><!-- Tags Section -->
+      <div class="card rounded-2xl p-4 mb-4 shadow-sm">
+       <h3 class="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+        <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+        </svg> 2. Seleziona e trascina tag</h3>
+       <div class="flex flex-wrap gap-3 mb-3"><button class="tag-button w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg border-2 border-white" style="background: #ef4444;" data-tag="A" onclick="addTagToPhoto('A', 'photo-container')">A</button> <button class="tag-button w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg border-2 border-white" style="background: #f97316;" data-tag="B" onclick="addTagToPhoto('B', 'photo-container')">B</button> <button class="tag-button w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg border-2 border-white" style="background: #eab308;" data-tag="C" onclick="addTagToPhoto('C', 'photo-container')">C</button> <button class="tag-button w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg border-2 border-white" style="background: #8b5cf6;" data-tag="D" onclick="addTagToPhoto('D', 'photo-container')">D</button> <button class="tag-button w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg border-2 border-white" style="background: #3b82f6;" data-tag="E" onclick="addTagToPhoto('E', 'photo-container')">E</button> <button class="tag-button w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg border-2 border-white" style="background: #22c55e;" data-tag="F" onclick="addTagToPhoto('F', 'photo-container')">F</button>
+       </div>
+       <p class="text-xs text-slate-500">Clicca sui tag per aggiungerli alla foto, tieni premuto per spostarli</p>
+       <div id="placed-tags-info" class="hidden mt-3 pt-3 border-t border-slate-200">
+        <p class="text-sm text-slate-600">Tag posizionati: <span id="placed-tags-list" class="font-medium text-blue-600"></span></p><button onclick="clearAllTags()" class="text-xs text-red-500 hover:text-red-600 mt-1">Rimuovi tutti</button>
+       </div>
+      </div><!-- Notes Section -->
+      <div class="card rounded-2xl p-4 mb-4 shadow-sm">
+       <h3 class="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+        <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg> 3. Note</h3><textarea id="report-notes" rows="3" placeholder="Descrivi il problema o l'osservazione..." class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+      </div><!-- Save Button --> <button onclick="saveReport()" class="btn-primary w-full text-white py-4 rounded-xl font-semibold text-lg shadow-lg mb-4 flex items-center justify-center gap-2">
+       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+       </svg> Salva Report </button> <!-- Mini Report Table -->
+      <div id="mini-report-section" class="hidden">
+       <h3 class="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+        <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+        </svg> Mini Report</h3>
+       <div class="card rounded-xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+         <table class="w-full text-sm">
+          <thead class="bg-slate-100">
+           <tr>
+            <th class="px-3 py-2 text-left font-medium text-slate-600">ID</th>
+            <th class="px-3 py-2 text-left font-medium text-slate-600">Data</th>
+            <th class="px-3 py-2 text-left font-medium text-slate-600">Tag</th>
+            <th class="px-3 py-2 text-left font-medium text-slate-600">Stato</th>
+            <th class="px-3 py-2 text-left font-medium text-slate-600">Note</th>
+           </tr>
+          </thead>
+          <tbody id="mini-report-body"></tbody>
+         </table>
+        </div>
+       </div>
+      </div>
+     </div><!-- List Report Tab -->
+     <div id="content-list" class="hidden p-4">
+      <div id="empty-list" class="text-center py-12">
+       <svg class="w-16 h-16 mx-auto text-slate-300 mb-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+       </svg>
+       <p class="text-slate-500">Nessun report ancora</p>
+       <p class="text-slate-400 text-sm">Inizia aggiungendo il primo report</p>
+      </div>
+      <div id="report-list" class="space-y-4"></div>
+     </div>
+    </main>
+   </div><!-- Edit Report Modal -->
+   <div id="edit-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-lg max-h-[90%] overflow-auto shadow-2xl">
+     <div class="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+      <h3 class="font-semibold text-slate-800">Modifica Report</h3><button onclick="closeEditModal()" class="p-2 hover:bg-slate-100 rounded-lg">
+       <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+       </svg></button>
+     </div>
+     <div class="p-4">
+      <div id="edit-photo-container" class="photo-container rounded-xl overflow-hidden bg-slate-900 mb-4 flex items-center justify-center" style="max-height: 300px;"><img id="edit-photo-img" class="max-w-full max-h-[300px] object-contain" alt="Foto">
+      </div>
+      <div class="flex flex-wrap gap-2 mb-4"><button class="tag-button w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-lg border-2 border-white text-sm" style="background: #ef4444;" data-tag="A" onclick="addTagToPhoto('A', 'edit-photo-container')">A</button> <button class="tag-button w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-lg border-2 border-white text-sm" style="background: #f97316;" data-tag="B" onclick="addTagToPhoto('B', 'edit-photo-container')">B</button> <button class="tag-button w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-lg border-2 border-white text-sm" style="background: #eab308;" data-tag="C" onclick="addTagToPhoto('C', 'edit-photo-container')">C</button> <button class="tag-button w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-lg border-2 border-white text-sm" style="background: #8b5cf6;" data-tag="D" onclick="addTagToPhoto('D', 'edit-photo-container')">D</button> <button class="tag-button w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-lg border-2 border-white text-sm" style="background: #3b82f6;" data-tag="E" onclick="addTagToPhoto('E', 'edit-photo-container')">E</button> <button class="tag-button w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-lg border-2 border-white text-sm" style="background: #22c55e;" data-tag="F" onclick="addTagToPhoto('F', 'edit-photo-container')">F</button>
+      </div>
+      <div id="edit-placed-tags-info" class="mb-4">
+       <p class="text-sm text-slate-600">Tag: <span id="edit-placed-tags-list" class="font-medium text-blue-600"></span></p><button onclick="clearEditTags()" class="text-xs text-red-500 hover:text-red-600">Rimuovi tutti</button>
+      </div>
+      <div class="mb-4"><label class="block text-sm font-medium text-slate-700 mb-1">Stato</label> <select id="edit-status" class="w-full px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"> <option value="pending">Pendente</option> <option value="progress">In Elaborazione</option> <option value="completed">Completato</option> </select>
+      </div>
+      <div class="mb-4"><label class="block text-sm font-medium text-slate-700 mb-1">Note</label> <textarea id="edit-notes" rows="2" class="w-full px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+      </div>
+      <div class="mb-4"><label class="block text-sm font-medium text-slate-700 mb-1">Note elaborazione</label> <textarea id="edit-process-notes" rows="2" class="w-full px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+      </div><button onclick="updateReport()" class="btn-primary w-full text-white py-3 rounded-xl font-semibold"> Salva Modifiche </button>
+     </div>
+    </div>
+   </div><!-- Export Modal -->
+   <div id="export-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+     <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+      <h3 class="font-semibold text-slate-800">Esporta</h3><button onclick="closeExportModal()" class="p-2 hover:bg-slate-100 rounded-lg">
+       <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+       </svg></button>
+     </div>
+     <div class="p-4 space-y-3"><button onclick="exportJSON()" class="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-all">
+       <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+        <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+        </svg>
+       </div>
+       <div class="text-left">
+        <p class="font-medium text-slate-800">JSON</p>
+        <p class="text-xs text-slate-500">Backup completo dati</p>
+       </div></button> <button onclick="exportPDF()" class="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-all">
+       <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+       </div>
+       <div class="text-left">
+        <p class="font-medium text-slate-800">PDF</p>
+        <p class="text-xs text-slate-500">Report professionale</p>
+       </div></button> <button onclick="exportDOCX()" class="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-all">
+       <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+       </div>
+       <div class="text-left">
+        <p class="font-medium text-slate-800">DOCX</p>
+        <p class="text-xs text-slate-500">Documento Word</p>
+       </div></button>
+     </div>
+    </div>
+   </div><!-- Menu Modal -->
+   <div id="menu-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+     <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+      <h3 class="font-semibold text-slate-800">Menu</h3><button onclick="closeMenuModal()" class="p-2 hover:bg-slate-100 rounded-lg">
+       <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+       </svg></button>
+     </div>
+     <div class="p-4 space-y-2"><button onclick="editListTitle()" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-all text-left">
+       <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+       </svg><span class="font-medium text-slate-700">Modifica Titolo Lista</span> </button> <button onclick="document.getElementById('import-json-main').click()" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-all text-left">
+       <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+       </svg><span class="font-medium text-slate-700">Importa JSON</span> </button> <input type="file" id="import-json-main" accept=".json" onchange="handleImportMain(event)"> <button onclick="confirmReset()" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 transition-all text-left">
+       <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+       </svg><span class="font-medium text-red-500">Nuovo Progetto</span> </button>
+     </div>
+    </div>
+   </div><!-- Import Choice Modal -->
+   <div id="import-choice-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
+     <h3 class="font-semibold text-slate-800 text-lg mb-4 text-center">Come vuoi importare?</h3>
+     <div class="space-y-3"><button onclick="importAdd()" class="w-full py-3 px-4 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium transition-all"> Aggiungi ai report esistenti </button> <button onclick="importReplace()" class="w-full py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-all"> Sostituisci tutta la lista </button> <button onclick="closeImportChoiceModal()" class="w-full py-2 text-slate-500 text-sm"> Annulla </button>
+     </div>
+    </div>
+   </div><!-- Confirm Reset Modal -->
+   <div id="reset-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
+     <div class="text-center mb-4">
+      <div class="w-12 h-12 mx-auto rounded-full bg-red-100 flex items-center justify-center mb-3">
+       <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+       </svg>
+      </div>
+      <h3 class="font-semibold text-slate-800 text-lg">Nuovo Progetto</h3>
+      <p class="text-slate-500 text-sm mt-1">Tutti i report verranno eliminati. Vuoi continuare?</p>
+     </div>
+     <div class="flex gap-3"><button onclick="closeResetModal()" class="flex-1 py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-all"> Annulla </button> <button onclick="resetProject()" class="flex-1 py-2 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-white font-medium transition-all"> Conferma </button>
+     </div>
+    </div>
+   </div><!-- Delete Confirm Modal -->
+   <div id="delete-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
+     <div class="text-center mb-4">
+      <div class="w-12 h-12 mx-auto rounded-full bg-red-100 flex items-center justify-center mb-3">
+       <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+       </svg>
+      </div>
+      <h3 class="font-semibold text-slate-800 text-lg">Elimina Report</h3>
+      <p class="text-slate-500 text-sm mt-1">Questa azione non può essere annullata.</p>
+     </div>
+     <div class="flex gap-3"><button onclick="closeDeleteModal()" class="flex-1 py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-all"> Annulla </button> <button onclick="confirmDelete()" class="flex-1 py-2 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-white font-medium transition-all"> Elimina </button>
+     </div>
+    </div>
+   </div><!-- Edit Title Modal -->
+   <div id="edit-title-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
+     <h3 class="font-semibold text-slate-800 text-lg mb-4">Modifica Titolo</h3><input type="text" id="edit-title-input" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+     <div class="flex gap-3"><button onclick="closeEditTitleModal()" class="flex-1 py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-all"> Annulla </button> <button onclick="saveListTitle()" class="flex-1 py-2 px-4 rounded-xl btn-primary text-white font-medium"> Salva </button>
+     </div>
+    </div>
+   </div><!-- Toast Container -->
+   <div id="toast-container" class="fixed top-4 left-4 right-4 z-50 flex flex-col items-center pointer-events-none"></div>
+  </div>
+  <script>
+    // App State - ALL DATA IN RAM
+    let appState = {
+      listTitle: '',
+      reports: [],
+      currentTab: 'add',
+      editingReportId: null,
+      pendingImportData: null,
+      deleteReportId: null
+    };
+    
+    // Current form state
+    let currentPhoto = null;
+    let placedTags = {};
+    let editPlacedTags = {};
+    
+    // Tag colors
+    const tagColors = {
+      A: '#ef4444',
+      B: '#f97316',
+      C: '#eab308',
+      D: '#8b5cf6',
+      E: '#3b82f6',
+      F: '#22c55e'
+    };
+    
+    let draggedTag = null;
+    let dragOffset = { x: 0, y: 0 };
+    
+    // Add tag to photo
+    function addTagToPhoto(tagLetter, containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      
+      // Check if photo exists
+      const img = container.querySelector('img');
+      if (!img || !img.src) {
+        showToast('Carica prima una foto', 'error');
+        return;
+      }
+      
+      // Get which tags object to use
+      const tagsObj = containerId === 'photo-container' ? placedTags : editPlacedTags;
+      const updateFn = containerId === 'photo-container' ? updatePlacedTagsDisplay : updateEditPlacedTagsDisplay;
+      
+      // Check if tag already exists
+      const existingTag = container.querySelector(`[data-placed-tag="${tagLetter}"]`);
+      if (existingTag) {
+        showToast(`Tag ${tagLetter} già presente`, 'error');
+        return;
+      }
+      
+      // Add tag at center of photo
+      const rect = container.getBoundingClientRect();
+      const centerX = 50; // percentage
+      const centerY = 50; // percentage
+      
+      createTagOnPhoto(tagLetter, centerX, centerY, container, tagsObj, updateFn);
+      showToast(`Tag ${tagLetter} aggiunto`, 'success');
+    }
+    
+    // Create tag element on photo
+    function createTagOnPhoto(tagLetter, percentX, percentY, container, tagsObj, updateFn) {
+      const tagEl = document.createElement('div');
+      tagEl.className = 'tag-on-photo';
+      tagEl.style.left = percentX + '%';
+      tagEl.style.top = percentY + '%';
+      tagEl.style.background = tagColors[tagLetter];
+      tagEl.textContent = tagLetter;
+      tagEl.dataset.placedTag = tagLetter;
+      
+      // Store position
+      tagsObj[tagLetter] = { x: percentX, y: percentY };
+      
+      // Add drag handlers
+      setupTagDrag(tagEl, container, tagsObj, updateFn);
+      
+      // Add double-tap to remove
+      let lastTap = 0;
+      tagEl.addEventListener('touchstart', (e) => {
+        const now = Date.now();
+        if (now - lastTap < 300) {
+          e.preventDefault();
+          removeTagFromPhoto(tagLetter, container, tagsObj, updateFn);
+        }
+        lastTap = now;
+      });
+      
+      tagEl.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        removeTagFromPhoto(tagLetter, container, tagsObj, updateFn);
+      });
+      
+      container.appendChild(tagEl);
+      updateFn();
+    }
+    
+    // Remove tag from photo
+    function removeTagFromPhoto(tagLetter, container, tagsObj, updateFn) {
+      const tagEl = container.querySelector(`[data-placed-tag="${tagLetter}"]`);
+      if (tagEl) {
+        tagEl.remove();
+        delete tagsObj[tagLetter];
+        updateFn();
+        showToast(`Tag ${tagLetter} rimosso`, 'info');
+      }
+    }
+    
+    // Setup drag functionality for a tag
+    function setupTagDrag(tagEl, container, tagsObj, updateFn) {
+      const tagLetter = tagEl.dataset.placedTag;
+      let isDragging = false;
+      let startX, startY;
+      
+      // Mouse events
+      tagEl.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        isDragging = true;
+        draggedTag = tagEl;
+        
+        const rect = container.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        
+        tagEl.classList.add('dragging');
+      });
+      
+      // Touch events
+      tagEl.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        
+        isDragging = true;
+        draggedTag = tagEl;
+        
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        
+        tagEl.classList.add('dragging');
+      }, { passive: true });
+      
+      // Global mouse move
+      const handleMouseMove = (e) => {
+        if (!isDragging || draggedTag !== tagEl) return;
+        e.preventDefault();
+        
+        const rect = container.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // Convert to percentage
+        let percentX = (x / rect.width) * 100;
+        let percentY = (y / rect.height) * 100;
+        
+        // Clamp to container bounds
+        percentX = Math.max(0, Math.min(100, percentX));
+        percentY = Math.max(0, Math.min(100, percentY));
+        
+        tagEl.style.left = percentX + '%';
+        tagEl.style.top = percentY + '%';
+        
+        tagsObj[tagLetter] = { x: percentX, y: percentY };
+      };
+      
+      // Global touch move
+      const handleTouchMove = (e) => {
+        if (!isDragging || draggedTag !== tagEl) return;
+        if (e.touches.length !== 1) return;
+        
+        const touch = e.touches[0];
+        const rect = container.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        // Convert to percentage
+        let percentX = (x / rect.width) * 100;
+        let percentY = (y / rect.height) * 100;
+        
+        // Clamp to container bounds
+        percentX = Math.max(0, Math.min(100, percentX));
+        percentY = Math.max(0, Math.min(100, percentY));
+        
+        tagEl.style.left = percentX + '%';
+        tagEl.style.top = percentY + '%';
+        
+        tagsObj[tagLetter] = { x: percentX, y: percentY };
+      };
+      
+      // Global mouse up
+      const handleMouseUp = (e) => {
+        if (isDragging && draggedTag === tagEl) {
+          isDragging = false;
+          draggedTag = null;
+          tagEl.classList.remove('dragging');
+          updateFn();
+        }
+      };
+      
+      // Global touch end
+      const handleTouchEnd = (e) => {
+        if (isDragging && draggedTag === tagEl) {
+          isDragging = false;
+          draggedTag = null;
+          tagEl.classList.remove('dragging');
+          updateFn();
+        }
+      };
+      
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove, { passive: true });
+      document.addEventListener('touchend', handleTouchEnd, { passive: true });
+    }
+    const defaultConfig = {
+      app_title: 'Report'
+    };
+    
+    let config = { ...defaultConfig };
+    
+    // Initialize Element SDK
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange: async (newConfig) => {
+          config = { ...defaultConfig, ...newConfig };
+          document.getElementById('app-title-welcome').textContent = config.app_title || defaultConfig.app_title;
+        },
+        mapToCapabilities: (cfg) => ({
+          recolorables: [],
+          borderables: [],
+          fontEditable: undefined,
+          fontSizeable: undefined
+        }),
+        mapToEditPanelValues: (cfg) => new Map([
+          ['app_title', cfg.app_title || defaultConfig.app_title]
+        ])
+      });
+    }
+    
+    // Generate unique ID
+    function generateId() {
+      return 'RPT-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2, 4).toUpperCase();
+    }
+    
+    // Toast notification
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast px-4 py-3 rounded-xl shadow-lg mb-2 pointer-events-auto ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'} text-white font-medium text-sm`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+    
+    // Screen navigation
+    function showScreen(screen) {
+      document.getElementById('welcome-screen').classList.add('hidden');
+      document.getElementById('title-screen').classList.add('hidden');
+      document.getElementById('main-app').classList.add('hidden');
+      document.getElementById(screen).classList.remove('hidden');
+    }
+    
+    // Start new project
+    function startNewProject() {
+      showScreen('title-screen');
+      document.getElementById('list-title-input').value = '';
+      document.getElementById('list-title-input').focus();
+    }
+    
+    // Confirm list title
+    function confirmListTitle() {
+      const title = document.getElementById('list-title-input').value.trim();
+      if (!title) {
+        showToast('Inserisci un titolo per la lista', 'error');
+        return;
+      }
+      appState.listTitle = title;
+      appState.reports = [];
+      showScreen('main-app');
+      updateHeader();
+      renderReportList();
+      updateMiniReport();
+      resetForm();
+    }
+    
+    // Update header
+    function updateHeader() {
+      document.getElementById('header-list-title').textContent = appState.listTitle;
+      document.getElementById('report-count').textContent = appState.reports.length;
+    }
+    
+    // Switch tabs
+    function switchTab(tab) {
+      appState.currentTab = tab;
+      document.getElementById('tab-add').className = tab === 'add' ? 'tab-active flex-1 py-2 px-3 rounded-lg font-medium text-sm transition-all' : 'flex-1 py-2 px-3 rounded-lg font-medium text-sm bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all';
+      document.getElementById('tab-list').className = tab === 'list' ? 'tab-active flex-1 py-2 px-3 rounded-lg font-medium text-sm transition-all' : 'flex-1 py-2 px-3 rounded-lg font-medium text-sm bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all';
+      document.getElementById('content-add').classList.toggle('hidden', tab !== 'add');
+      document.getElementById('content-list').classList.toggle('hidden', tab !== 'list');
+    }
+    
+    // Handle photo selection
+    function handlePhotoSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        currentPhoto = e.target.result;
+        placedTags = {};
+        document.getElementById('photo-placeholder').classList.add('hidden');
+        document.getElementById('photo-preview').classList.remove('hidden');
+        document.getElementById('photo-img').src = currentPhoto;
+        updatePlacedTagsDisplay();
+        clearTagsOnPhoto('photo-container');
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+    }
+    
+    // Remove photo
+    function removePhoto() {
+      currentPhoto = null;
+      placedTags = {};
+      document.getElementById('photo-placeholder').classList.remove('hidden');
+      document.getElementById('photo-preview').classList.add('hidden');
+      document.getElementById('photo-img').src = '';
+      updatePlacedTagsDisplay();
+    }
+    
+    // Clear tags on photo
+    function clearTagsOnPhoto(containerId) {
+      const container = document.getElementById(containerId);
+      container.querySelectorAll('.tag-on-photo').forEach(el => el.remove());
+    }
+    
+    // Update placed tags display
+    function updatePlacedTagsDisplay() {
+      const tags = Object.keys(placedTags);
+      const info = document.getElementById('placed-tags-info');
+      const list = document.getElementById('placed-tags-list');
+      
+      if (tags.length > 0) {
+        info.classList.remove('hidden');
+        list.textContent = tags.sort().join(', ');
+      } else {
+        info.classList.add('hidden');
+      }
+    }
+    
+    // Clear all tags
+    function clearAllTags() {
+      placedTags = {};
+      clearTagsOnPhoto('photo-container');
+      updatePlacedTagsDisplay();
+    }
+    
+    // Save report
+    async function saveReport() {
+      if (!currentPhoto) {
+        showToast('Carica una foto prima di salvare', 'error');
+        return;
+      }
+      
+      if (Object.keys(placedTags).length === 0) {
+        showToast('Posiziona almeno un tag sulla foto', 'error');
+        return;
+      }
+      
+      const notes = document.getElementById('report-notes').value.trim();
+      
+      // Generate merged photo
+      const mergedPhoto = await generateMergedPhoto(currentPhoto, placedTags);
+      
+      const report = {
+        id: generateId(),
+        photoOriginal: currentPhoto,
+        photoMerged: mergedPhoto,
+        tags: { ...placedTags },
+        notes: notes,
+        processNotes: '',
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      };
+      
+      appState.reports.push(report);
+      showToast('Report salvato con successo');
+      
+      resetForm();
+      updateHeader();
+      renderReportList();
+      updateMiniReport();
+    }
+    
+    // Generate merged photo with tags
+    async function generateMergedPhoto(photoBase64, tags) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          
+          ctx.drawImage(img, 0, 0);
+          
+          // Draw tags
+          Object.entries(tags).forEach(([letter, pos]) => {
+            const x = (pos.x / 100) * img.width;
+            const y = (pos.y / 100) * img.height;
+            const radius = Math.min(img.width, img.height) * 0.025;
             
-            <div class="color-picker-group">
-              <label class="form-label">Tag Colorato</label>
-              <div class="tag-toggle-container">
-                <button type="button" class="tag-toggle-btn" data-color="#FF0000" data-letter="A" style="background-color: #FF0000;">A</button>
-                <button type="button" class="tag-toggle-btn" data-color="#FFA500" data-letter="B" style="background-color: #FFA500;">B</button>
-                <button type="button" class="tag-toggle-btn" data-color="#FFFF00" data-letter="C" style="background-color: #FFFF00;">C</button>
-                <button type="button" class="tag-toggle-btn" data-color="#0000FF" data-letter="D" style="background-color: #0000FF;">D</button>
-                <button type="button" class="tag-toggle-btn" data-color="#00FF00" data-letter="E" style="background-color: #00FF00;">E</button>
+            // Circle
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = tagColors[letter];
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = radius * 0.2;
+            ctx.stroke();
+            
+            // Letter
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${radius * 1.2}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(letter, x, y);
+          });
+          
+          resolve(canvas.toDataURL('image/jpeg', 0.9));
+        };
+        img.src = photoBase64;
+      });
+    }
+    
+    // Reset form
+    function resetForm() {
+      currentPhoto = null;
+      placedTags = {};
+      document.getElementById('photo-placeholder').classList.remove('hidden');
+      document.getElementById('photo-preview').classList.add('hidden');
+      document.getElementById('photo-img').src = '';
+      document.getElementById('report-notes').value = '';
+      clearTagsOnPhoto('photo-container');
+      updatePlacedTagsDisplay();
+    }
+    
+    // Render report list
+    function renderReportList() {
+      const list = document.getElementById('report-list');
+      const empty = document.getElementById('empty-list');
+      
+      if (appState.reports.length === 0) {
+        empty.classList.remove('hidden');
+        list.innerHTML = '';
+        return;
+      }
+      
+      empty.classList.add('hidden');
+      
+      list.innerHTML = appState.reports.map(report => {
+        const date = new Date(report.createdAt);
+        const dateStr = date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const timeStr = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+        
+        const statusClass = report.status === 'pending' ? 'status-pending' : report.status === 'progress' ? 'status-progress' : 'status-completed';
+        const statusText = report.status === 'pending' ? 'Pendente' : report.status === 'progress' ? 'In Elaborazione' : 'Completato';
+        
+        return `
+          <div class="card rounded-2xl overflow-hidden shadow-sm">
+            <div class="flex flex-col sm:flex-row">
+              <div class="sm:w-[200px] h-[150px] bg-slate-900 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                <img src="${report.photoMerged}" alt="Report ${report.id}" class="max-w-full max-h-full object-contain" loading="lazy" onerror="this.src=''; this.alt='Immagine non disponibile';">
+              </div>
+              <div class="flex-1 p-4">
+                <div class="flex items-start justify-between mb-2">
+                  <div>
+                    <p class="font-semibold text-slate-800 text-sm">${report.id}</p>
+                    <p class="text-xs text-slate-500">${dateStr} ${timeStr}</p>
+                  </div>
+                  <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>
+                </div>
+                <p class="text-sm text-slate-600 mb-2">Tag: <span class="font-medium text-blue-600">${Object.keys(report.tags).sort().join(', ')}</span></p>
+                <div class="mb-2">
+                  <p class="text-xs font-semibold text-slate-700 mb-0.5">Note:</p>
+                  ${report.notes ? `<p class="text-sm text-slate-600 line-clamp-2">${report.notes}</p>` : '<p class="text-sm text-slate-400 italic">Nessuna nota</p>'}
+                </div>
+                <div class="mb-2">
+                  <p class="text-xs font-semibold text-slate-700 mb-0.5">Note Elaborazione:</p>
+                  ${report.processNotes ? `<p class="text-sm text-slate-600 line-clamp-2">${report.processNotes}</p>` : '<p class="text-sm text-slate-400 italic">Nessuna nota</p>'}
+                </div>
+                <div class="flex gap-2 mt-3">
+                  <button onclick="openEditModal('${report.id}')" class="flex-1 py-2 px-3 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 font-medium text-sm transition-all flex items-center justify-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    Modifica
+                  </button>
+                  <button onclick="showDeleteModal('${report.id}')" class="py-2 px-3 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 font-medium text-sm transition-all flex items-center justify-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-
-          <div class="form-group">
-            <label class="form-label" for="note">Note</label>
-            <textarea id="note" class="form-control" rows="4" placeholder="Inserisci le note"></textarea>
-          </div>
-
-          <button type="submit" class="btn btn--primary btn--full-width btn--lg">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Aggiungi Report
-          </button>
-        </form>
-
-        <!-- Mini Lista Report Aggiunti -->
-        <div id="miniReportsList" class="mini-reports-list" style="display: none;">
-          <h3 class="mini-reports-title">Report Aggiunti in questa Sessione</h3>
-          <div class="mini-reports-table-container">
-            <table class="mini-reports-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Colore Tag</th>
-                  <th>Nota</th>
-                </tr>
-              </thead>
-              <tbody id="miniReportsTableBody">
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- Lista Report Tab -->
-      <section id="tab-lista" class="tab-pane">
-        <div class="export-actions">
-          <div class="export-section">
-            <h3 class="export-section-title">Backup e Ripristino</h3>
-            <div class="export-buttons">
-              <button id="resetApp" class="btn btn--secondary btn--sm">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="1 4 1 10 7 10"></polyline>
-                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                </svg>
-                Nuovo
-              </button>
-              <button id="exportJSON" class="btn btn--primary btn--sm">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                Salva
-              </button>
-              <button id="importJSON" class="btn btn--primary btn--sm">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="17 8 12 3 7 8"></polyline>
-                  <line x1="12" y1="3" x2="12" y2="15"></line>
-                </svg>
-                Apri
-              </button>
-              <input type="file" id="importFileInput" accept=".json" style="display: none;">
-            </div>
-          </div>
-          <div class="export-section">
-            <h3 class="export-section-title">Esportazione Documenti</h3>
-            <div class="export-buttons">
-              <button id="exportPDF" class="btn btn--secondary btn--sm">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>
-                Esporta PDF
-              </button>
-              <button id="exportDOCX" class="btn btn--secondary btn--sm">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <polyline points="10 9 9 9 8 9"></polyline>
-                </svg>
-                Esporta DOCX
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div id="reportsList" class="reports-list">
-          <div class="empty-state">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-              <circle cx="12" cy="13" r="4"></circle>
-            </svg>
-            <p>Nessun report disponibile</p>
-            <p class="text-secondary">Aggiungi il tuo primo report dalla scheda "Nuovo Report"</p>
-          </div>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <!-- Modal per Risolto -->
-  <div id="resolveModal" class="modal">
-    <div class="modal-content">
-      <h3>Risolvi Report</h3>
-      <p class="modal-subtitle">Aggiungi una nota di intervento</p>
-      <textarea id="noteElaborazione" class="form-control" rows="4" placeholder="Inserisci nota di intervento"></textarea>
-      <div class="modal-actions">
-        <button id="cancelResolve" class="btn btn--outline">Annulla</button>
-        <button id="confirmResolve" class="btn btn--primary">Conferma</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Edita Report -->
-  <div id="editModal" class="modal">
-    <div class="modal-content modal-content-large">
-      <h3>Modifica Report</h3>
-      <div class="form-group">
-        <label class="form-label">Foto</label>
-        <div class="photo-wrapper">
-          <img id="editPhotoPreview" class="photo-preview" alt="Anteprima foto">
-          <div id="editPhotoOverlay" class="photo-overlay"></div>
-          <div id="editArrowsContainer" class="arrows-container"></div>
-        </div>
-        <p class="helper-text">Attiva/disattiva i tag con i pulsanti colorati, poi trascinali per riposizionarli</p>
+        `;
+      }).join('');
+    }
+    
+    // Update mini report
+    function updateMiniReport() {
+      const section = document.getElementById('mini-report-section');
+      const body = document.getElementById('mini-report-body');
+      
+      if (appState.reports.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+      
+      section.classList.remove('hidden');
+      
+      body.innerHTML = appState.reports.map(report => {
+        const date = new Date(report.createdAt);
+        const dateStr = date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+        const statusClass = report.status === 'pending' ? 'status-pending' : report.status === 'progress' ? 'status-progress' : 'status-completed';
+        const statusText = report.status === 'pending' ? 'P' : report.status === 'progress' ? 'E' : 'C';
+        const notePreview = report.notes ? (report.notes.length > 30 ? report.notes.substring(0, 30) + '...' : report.notes) : '-';
         
-        <div class="color-picker-group">
-          <label class="form-label">Tag Colorato</label>
-          <div class="tag-toggle-container">
-            <button type="button" class="tag-toggle-btn edit-tag-btn" data-color="#FF0000" data-letter="A" style="background-color: #FF0000;">A</button>
-            <button type="button" class="tag-toggle-btn edit-tag-btn" data-color="#FFA500" data-letter="B" style="background-color: #FFA500;">B</button>
-            <button type="button" class="tag-toggle-btn edit-tag-btn" data-color="#FFFF00" data-letter="C" style="background-color: #FFFF00;">C</button>
-            <button type="button" class="tag-toggle-btn edit-tag-btn" data-color="#0000FF" data-letter="D" style="background-color: #0000FF;">D</button>
-            <button type="button" class="tag-toggle-btn edit-tag-btn" data-color="#00FF00" data-letter="E" style="background-color: #00FF00;">E</button>
-          </div>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="editNote">Note Report</label>
-        <textarea id="editNote" class="form-control" rows="4" placeholder="Inserisci le note"></textarea>
-      </div>
-      <div class="form-group" id="editNoteElaborazioneGroup" style="display: none;">
-        <label class="form-label" for="editNoteElaborazione">Note intervento</label>
-        <textarea id="editNoteElaborazione" class="form-control" rows="4" placeholder="Inserisci le note di elaborazione"></textarea>
-      </div>
-      <div class="modal-actions">
-        <button id="cancelEdit" class="btn btn--outline">Annulla</button>
-        <button id="confirmEdit" class="btn btn--primary">Salva Modifiche</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Modifica Titolo Lista -->
-  <div id="editTitleModal" class="modal">
-    <div class="modal-content">
-      <h3>Modifica Titolo Lista</h3>
-      <input type="text" id="editListTitleInput" class="form-control" placeholder="Nuovo titolo lista">
-      <div class="modal-actions">
-        <button id="cancelEditTitle" class="btn btn--outline">Annulla</button>
-        <button id="confirmEditTitle" class="btn btn--primary">Salva</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Conferma Elimina -->
-  <div id="deleteModal" class="modal">
-    <div class="modal-content">
-      <h3>Elimina Report</h3>
-      <p>Sei sicuro di voler eliminare questo report?</p>
-      <div class="modal-actions">
-        <button id="cancelDelete" class="btn btn--outline">Annulla</button>
-        <button id="confirmDelete" class="btn btn--primary" style="background-color: var(--color-error);">Elimina</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Conferma Import -->
-  <div id="importModal" class="modal">
-    <div class="modal-content">
-      <h3>Importa Dati</h3>
-      <p id="importMessage">Sono stati trovati <strong id="importCount">0</strong> report nel file.</p>
-      <p class="modal-subtitle">Come vuoi procedere?</p>
-      <div class="modal-actions">
-        <button id="cancelImport" class="btn btn--outline">Annulla</button>
-        <button id="confirmImportAdd" class="btn btn--secondary">Aggiungi ai report esistenti</button>
-        <button id="confirmImportReplace" class="btn btn--primary">Sostituisci lista attuale</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast Notification -->
-  <div id="toast" class="toast"></div>
-
-  <!-- External Libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
-  <script src="app.js"></script>
-
-  <!-- AGGIUNGI QUESTO SCRIPT PRIMA DI CHIUDERE IL </body> (dopo app.js) -->
-
-  <script>
-  // Registrazione Service Worker per PWA
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-      navigator.serviceWorker.register('service-worker.js')
-        .then(function(registration) {
-          console.log('Service Worker registrato correttamente');
-        })
-        .catch(function(error) {
-          console.log('Errore nella registrazione Service Worker:', error);
+        return `
+          <tr class="border-t border-slate-100">
+            <td class="px-3 py-2 text-xs font-medium text-slate-700">${report.id.split('-')[1]}</td>
+            <td class="px-3 py-2 text-xs text-slate-600">${dateStr}</td>
+            <td class="px-3 py-2 text-xs text-blue-600 font-medium">${Object.keys(report.tags).length}</td>
+            <td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded text-xs font-medium ${statusClass}">${statusText}</span></td>
+            <td class="px-3 py-2 text-xs text-slate-600 max-w-[100px] truncate">${notePreview}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    // Edit modal functions
+    function openEditModal(reportId) {
+      const report = appState.reports.find(r => r.id === reportId);
+      if (!report) return;
+      
+      appState.editingReportId = reportId;
+      editPlacedTags = { ...report.tags };
+      
+      document.getElementById('edit-photo-img').src = report.photoOriginal;
+      document.getElementById('edit-status').value = report.status;
+      document.getElementById('edit-notes').value = report.notes;
+      document.getElementById('edit-process-notes').value = report.processNotes;
+      
+      // Render existing tags
+      const container = document.getElementById('edit-photo-container');
+      clearTagsOnPhoto('edit-photo-container');
+      
+      Object.entries(report.tags).forEach(([letter, pos]) => {
+        createTagOnPhoto(letter, pos.x, pos.y, container, editPlacedTags, updateEditPlacedTagsDisplay);
+      });
+      
+      updateEditPlacedTagsDisplay();
+      document.getElementById('edit-modal').classList.remove('hidden');
+      closeMenuModal();
+    }
+    
+    function closeEditModal() {
+      document.getElementById('edit-modal').classList.add('hidden');
+      appState.editingReportId = null;
+      editPlacedTags = {};
+    }
+    
+    function updateEditPlacedTagsDisplay() {
+      const tags = Object.keys(editPlacedTags);
+      document.getElementById('edit-placed-tags-list').textContent = tags.length > 0 ? tags.sort().join(', ') : 'Nessuno';
+    }
+    
+    function clearEditTags() {
+      editPlacedTags = {};
+      clearTagsOnPhoto('edit-photo-container');
+      updateEditPlacedTagsDisplay();
+    }
+    
+    async function updateReport() {
+      if (Object.keys(editPlacedTags).length === 0) {
+        showToast('Posiziona almeno un tag sulla foto', 'error');
+        return;
+      }
+      
+      const report = appState.reports.find(r => r.id === appState.editingReportId);
+      if (!report) return;
+      
+      report.tags = { ...editPlacedTags };
+      report.status = document.getElementById('edit-status').value;
+      report.notes = document.getElementById('edit-notes').value;
+      report.processNotes = document.getElementById('edit-process-notes').value;
+      report.photoMerged = await generateMergedPhoto(report.photoOriginal, report.tags);
+      
+      showToast('Report aggiornato');
+      closeEditModal();
+      renderReportList();
+      updateMiniReport();
+    }
+    
+    // Delete functions
+    function showDeleteModal(reportId) {
+      appState.deleteReportId = reportId;
+      document.getElementById('delete-modal').classList.remove('hidden');
+    }
+    
+    function closeDeleteModal() {
+      document.getElementById('delete-modal').classList.add('hidden');
+      appState.deleteReportId = null;
+    }
+    
+    function confirmDelete() {
+      appState.reports = appState.reports.filter(r => r.id !== appState.deleteReportId);
+      showToast('Report eliminato');
+      closeDeleteModal();
+      updateHeader();
+      renderReportList();
+      updateMiniReport();
+    }
+    
+    // Export functions
+    function showExportModal() {
+      if (appState.reports.length === 0) {
+        showToast('Nessun report da esportare', 'error');
+        return;
+      }
+      document.getElementById('export-modal').classList.remove('hidden');
+    }
+    
+    function closeExportModal() {
+      document.getElementById('export-modal').classList.add('hidden');
+    }
+    
+    function exportJSON() {
+      const data = {
+        listTitle: appState.listTitle,
+        exportDate: new Date().toISOString(),
+        reports: appState.reports
+      };
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${appState.listTitle.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      showToast('JSON esportato');
+      closeExportModal();
+    }
+    
+    async function exportPDF() {
+      try {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = 210;
+        const pageHeight = 297;
+        const margin = 15;
+        
+        // Add page counter
+        let pageCount = 1;
+        
+        for (let i = 0; i < appState.reports.length; i++) {
+          const report = appState.reports[i];
+          if (i > 0) {
+            pdf.addPage();
+            pageCount++;
+          }
+          
+          let y = 20;
+          
+          // Header
+          pdf.setFontSize(18);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(appState.listTitle, margin, y);
+          y += 10;
+          
+          pdf.setFontSize(12);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(`Report: ${report.id}`, margin, y);
+          y += 7;
+          
+          const date = new Date(report.createdAt);
+          pdf.text(`Data: ${date.toLocaleDateString('it-IT')} ${date.toLocaleTimeString('it-IT')}`, margin, y);
+          y += 7;
+          
+          const statusText = report.status === 'pending' ? 'Pendente' : report.status === 'progress' ? 'In Elaborazione' : 'Completato';
+          pdf.text(`Stato: ${statusText}`, margin, y);
+          y += 7;
+          
+          pdf.text(`Tag: ${Object.keys(report.tags).sort().join(', ')}`, margin, y);
+          y += 10;
+          
+          // Photo
+          try {
+            const imgData = report.photoMerged;
+            const img = new Image();
+            img.src = imgData;
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              setTimeout(reject, 5000);
+            });
+            
+            const maxW = pageWidth - 2 * margin;
+            const maxH = 120;
+            let w = img.width;
+            let h = img.height;
+            
+            const scale = Math.min(maxW / w, maxH / h, 1);
+            w = w * scale;
+            h = h * scale;
+            
+            pdf.addImage(imgData, 'JPEG', margin, y, w, h);
+            y += h + 10;
+            
+          } catch (e) {
+            console.error('Error adding image to PDF', e);
+            pdf.setFontSize(10);
+            pdf.setTextColor(200, 0, 0);
+            pdf.text('[Errore caricamento immagine]', margin, y);
+            pdf.setTextColor(0, 0, 0);
+            y += 10;
+          }
+          
+          // Check if we need a new page
+          if (y > pageHeight - 60) {
+            pdf.addPage();
+            pageCount++;
+            y = 20;
+          }
+          
+          // Notes
+          if (report.notes) {
+            pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Note:', margin, y);
+            y += 6;
+            pdf.setFont('helvetica', 'normal');
+            const noteLines = pdf.splitTextToSize(report.notes, pageWidth - 2 * margin);
+            pdf.text(noteLines, margin, y);
+            y += noteLines.length * 5 + 5;
+          }
+          
+          if (y > pageHeight - 40 && report.processNotes) {
+            pdf.addPage();
+            pageCount++;
+            y = 20;
+          }
+          
+          if (report.processNotes) {
+            pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Note elaborazione:', margin, y);
+            y += 6;
+            pdf.setFont('helvetica', 'normal');
+            const procLines = pdf.splitTextToSize(report.processNotes, pageWidth - 2 * margin);
+            pdf.text(procLines, margin, y);
+            y += procLines.length * 5;
+          }
+          
+          // Page number
+          pdf.setFontSize(8);
+          pdf.setTextColor(150, 150, 150);
+          pdf.text(`Pagina ${pageCount}`, pageWidth - margin - 20, pageHeight - 10);
+          pdf.setTextColor(0, 0, 0);
+        }
+        
+        const filename = `${appState.listTitle.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+        pdf.save(filename);
+        showToast('PDF esportato con successo!');
+        closeExportModal();
+      } catch (error) {
+        console.error('PDF export error:', error);
+        showToast('Errore durante esportazione PDF', 'error');
+      }
+    }
+    
+    async function exportDOCX() {
+      try {
+        const { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType } = docx;
+        
+        const children = [
+          new Paragraph({
+            text: appState.listTitle,
+            heading: HeadingLevel.HEADING_1,
+            alignment: AlignmentType.CENTER
+          }),
+          new Paragraph({
+            text: `Esportato il ${new Date().toLocaleDateString('it-IT')}`,
+            alignment: AlignmentType.CENTER
+          }),
+          new Paragraph({ text: '' })
+        ];
+        
+        for (const report of appState.reports) {
+          const date = new Date(report.createdAt);
+          const statusText = report.status === 'pending' ? 'Pendente' : report.status === 'progress' ? 'In Elaborazione' : 'Completato';
+          
+          children.push(
+            new Paragraph({
+              text: `Report: ${report.id}`,
+              heading: HeadingLevel.HEADING_2
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'Data: ', bold: true }),
+                new TextRun(`${date.toLocaleDateString('it-IT')} ${date.toLocaleTimeString('it-IT')}`)
+              ]
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'Stato: ', bold: true }),
+                new TextRun(statusText)
+              ]
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'Tag: ', bold: true }),
+                new TextRun(Object.keys(report.tags).sort().join(', '))
+              ]
+            })
+          );
+          
+          // Add image
+          try {
+            const base64 = report.photoMerged.split(',')[1];
+            if (!base64) throw new Error('Invalid image data');
+            
+            const img = new Image();
+            img.src = report.photoMerged;
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              setTimeout(reject, 5000);
+            });
+            
+            // Max width 400px for DOCX, scale proportionally
+            let w = img.width;
+            let h = img.height;
+            const maxW = 400;
+            const maxH = 300;
+            
+            const scale = Math.min(maxW / w, maxH / h, 1);
+            w = Math.round(w * scale);
+            h = Math.round(h * scale);
+            
+            children.push(
+              new Paragraph({
+                children: [
+                  new ImageRun({
+                    data: Uint8Array.from(atob(base64), c => c.charCodeAt(0)),
+                    transformation: { width: w, height: h },
+                    type: 'jpg'
+                  })
+                ]
+              })
+            );
+          } catch (e) {
+            console.error('Error adding image to DOCX', e);
+            children.push(
+              new Paragraph({
+                children: [
+                  new TextRun({ text: '[Errore caricamento immagine]', color: 'FF0000' })
+                ]
+              })
+            );
+          }
+          
+          if (report.notes) {
+            children.push(
+              new Paragraph({
+                children: [
+                  new TextRun({ text: 'Note: ', bold: true }),
+                  new TextRun(report.notes)
+                ]
+              })
+            );
+          }
+          
+          if (report.processNotes) {
+            children.push(
+              new Paragraph({
+                children: [
+                  new TextRun({ text: 'Note elaborazione: ', bold: true }),
+                  new TextRun(report.processNotes)
+                ]
+              })
+            );
+          }
+          
+          children.push(new Paragraph({ text: '' }));
+        }
+        
+        const doc = new Document({
+          sections: [{ children }]
         });
+        
+        const blob = await Packer.toBlob(doc);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const filename = `${appState.listTitle.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.docx`;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        showToast('DOCX esportato con successo!');
+        closeExportModal();
+      } catch (error) {
+        console.error('DOCX export error:', error);
+        showToast('Errore durante esportazione DOCX', 'error');
+      }
+    }
+    
+    // Menu modal
+    function showMenuModal() {
+      document.getElementById('menu-modal').classList.remove('hidden');
+    }
+    
+    function closeMenuModal() {
+      document.getElementById('menu-modal').classList.add('hidden');
+    }
+    
+    // Edit title
+    function editListTitle() {
+      document.getElementById('edit-title-input').value = appState.listTitle;
+      document.getElementById('edit-title-modal').classList.remove('hidden');
+      closeMenuModal();
+    }
+    
+    function closeEditTitleModal() {
+      document.getElementById('edit-title-modal').classList.add('hidden');
+    }
+    
+    function saveListTitle() {
+      const newTitle = document.getElementById('edit-title-input').value.trim();
+      if (!newTitle) {
+        showToast('Il titolo non può essere vuoto', 'error');
+        return;
+      }
+      appState.listTitle = newTitle;
+      updateHeader();
+      closeEditTitleModal();
+      showToast('Titolo aggiornato');
+    }
+    
+    // Reset project
+    function confirmReset() {
+      document.getElementById('reset-modal').classList.remove('hidden');
+      closeMenuModal();
+    }
+    
+    function closeResetModal() {
+      document.getElementById('reset-modal').classList.add('hidden');
+    }
+    
+    function resetProject() {
+      appState = {
+        listTitle: '',
+        reports: [],
+        currentTab: 'add',
+        editingReportId: null,
+        pendingImportData: null,
+        deleteReportId: null
+      };
+      currentPhoto = null;
+      placedTags = {};
+      closeResetModal();
+      showScreen('welcome-screen');
+      showToast('Progetto resettato');
+    }
+    
+    // Import functions
+    function handleImportWelcome(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!data.listTitle || !Array.isArray(data.reports)) {
+            throw new Error('Invalid format');
+          }
+          appState.listTitle = data.listTitle;
+          appState.reports = data.reports;
+          showScreen('main-app');
+          updateHeader();
+          renderReportList();
+          updateMiniReport();
+          showToast(`Importati ${data.reports.length} report`);
+        } catch (err) {
+          showToast('File JSON non valido', 'error');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+    
+    function handleImportMain(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!data.listTitle || !Array.isArray(data.reports)) {
+            throw new Error('Invalid format');
+          }
+          appState.pendingImportData = data;
+          document.getElementById('import-choice-modal').classList.remove('hidden');
+          closeMenuModal();
+        } catch (err) {
+          showToast('File JSON non valido', 'error');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+    
+    function closeImportChoiceModal() {
+      document.getElementById('import-choice-modal').classList.add('hidden');
+      appState.pendingImportData = null;
+    }
+    
+    function importAdd() {
+      if (appState.pendingImportData) {
+        appState.reports = [...appState.reports, ...appState.pendingImportData.reports];
+        showToast(`Aggiunti ${appState.pendingImportData.reports.length} report`);
+        closeImportChoiceModal();
+        updateHeader();
+        renderReportList();
+        updateMiniReport();
+      }
+    }
+    
+    function importReplace() {
+      if (appState.pendingImportData) {
+        appState.listTitle = appState.pendingImportData.listTitle;
+        appState.reports = appState.pendingImportData.reports;
+        showToast(`Sostituiti con ${appState.pendingImportData.reports.length} report`);
+        closeImportChoiceModal();
+        updateHeader();
+        renderReportList();
+        updateMiniReport();
+      }
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      // App is ready
     });
-  }
   </script>
-
-</body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c17cdffe35cee6c',t:'MTc2OTAwODkyMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
